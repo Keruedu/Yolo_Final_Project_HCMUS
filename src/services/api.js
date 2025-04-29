@@ -8,7 +8,7 @@ export const detectObjects = async (imageFile) => {
   const formData = new FormData();
   formData.append('image', imageFile);
 
-  return await axios.post(`${API_URL}/predict`, formData, {
+  return await axios.post(`${API_URL}/predict?json_response=true`, formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
