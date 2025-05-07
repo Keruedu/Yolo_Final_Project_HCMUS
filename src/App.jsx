@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Upload, Button, notification } from 'antd';
-import { ClearOutlined, UploadOutlined } from '@ant-design/icons';
+import React, { useState } from 'react';
+import { Upload, Button, notification, Dropdown } from 'antd';
+import { DownOutlined, ClearOutlined, UploadOutlined } from '@ant-design/icons';
 import LoadingIndicator from './components/LoadingIndicator';
 import DetectionStats from './components/DetectionStats';
 import { detectObjects } from './services/api';
@@ -11,57 +11,72 @@ notification.config({
   duration: 4,
 });
 
+const modelItems = [
+  { key: 'yolov5', label: 'YOLO v5' },
+  { key: 'yolov8', label: 'YOLO v8' },
+  { key: 'yolov8-trained', label: 'YOLO v8 (đã train)' },
+];
+
 const App = () => {
   const [loading, setLoading] = useState(false);
   const [sourceImage, setSourceImage] = useState(null);
   const [resultImage, setResultImage] = useState(null);
   const [detectedObjects, setDetectedObjects] = useState([]);
-  const [imageFile, setImageFile] = useState(null); // Store the actual file object
+  const [imageFile, setImageFile] = useState(null);
+  const [selectedModel, setSelectedModel] = useState('yolov5');
 
   // Use Ant Design notification hook
   const [api, contextHolder] = notification.useNotification();
 
   const processImage = async (file) => {
     setLoading(true);
-    
     try {
-      // Use the API service instead of direct axios call
-      const response = await detectObjects(file);
-      
-      // Convert base64 string to image URL
-      const imageData = response.data.image || response.data.imageData; // Adjust based on your API response structure
+      const response = await detectObjects(file, selectedModel);
+      const imageData = response.data.image || response.data.imageData;
       const imageUrl = `data:image/jpeg;base64,${imageData}`;
-      
       setResultImage(imageUrl);
       setDetectedObjects(response.data.detections || []);
-      
+      api.success({
+        message: 'Thành công',
+        description: 'Xử lý ảnh thành công!',
+      });
     } catch (error) {
       console.error('Error:', error);
+      api.error({
+        message: 'Lỗi',
+        description: 'Xử lý ảnh thất bại!',
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle initial file upload
   const handleUpload = (file) => {
-    // Check if file is an image
     if (!file.type.startsWith('image/')) {
+      api.error({
+        message: 'Lỗi',
+        description: 'Chỉ được phép tải lên file ảnh!',
+      });
       return false;
     }
-    
-    // Check file size (limit to 10MB)
     if (file.size > 10 * 1024 * 1024) {
+      api.error({
+        message: 'Lỗi',
+        description: 'Dung lượng ảnh tối đa là 10MB!',
+      });
       return false;
     }
-    
     setImageFile(file);
     setSourceImage(URL.createObjectURL(file));
-    return false; // Prevent default upload behavior
+    return false;
   };
 
-  // Handle the submit button click
   const handleSubmit = () => {
     if (!imageFile) {
+      api.warning({
+        message: 'Thiếu ảnh',
+        description: 'Vui lòng chọn ảnh trước khi submit!',
+      });
       return;
     }
     processImage(imageFile);
@@ -74,19 +89,27 @@ const App = () => {
     setImageFile(null);
   };
 
+  const handleMenuClick = (e) => {
+    setSelectedModel(e.key);
+  };
+
   return (
     <div className="bg-gray-900 min-h-screen text-white p-6">
-      <h1 className="text-4xl font-bold text-center mb-4">YOLO v3 Object Detector</h1>
-      
-      <p className="text-center mb-8">
-        Welcome to my object detection web application. Simply upload an image and let the model do the rest! 
-        It will quickly identify and locate objects within the image and classify them into one of the 
-        <span className="text-blue-400"> 80 classes</span>.
-        The model is based on <span className="text-blue-400">YOLOv3</span> and was trained on a massive dataset 
-        called <span className="text-blue-400">COCO</span>, which made it one of the fastest and most accurate 
-        object detectors available.
-      </p>
-      
+      {contextHolder}
+      <h1 className="text-4xl font-bold text-center mb-4">YOLO Object Detector</h1>
+      <div className="flex justify-center mb-6">
+        <Dropdown
+          menu={{
+            items: modelItems,
+            onClick: handleMenuClick,
+          }}
+          placement="bottom"
+        >
+          <Button>
+            {modelItems.find((item) => item.key === selectedModel)?.label || 'Chọn model'} <DownOutlined />
+          </Button>
+        </Dropdown>
+      </div>
       <div className="flex flex-col lg:flex-row gap-4">
         {/* Left Panel - Upload Area */}
         <div className="w-full lg:w-1/2 bg-gray-800 rounded-lg p-4">
@@ -98,7 +121,6 @@ const App = () => {
             </div>
             <span>source_img</span>
           </div>
-          
           <Upload.Dragger
             showUploadList={false}
             beforeUpload={(file) => {
@@ -119,12 +141,11 @@ const App = () => {
               </div>
             )}
           </Upload.Dragger>
-          
           <div className="flex justify-between mt-4">
             <Button 
               icon={<ClearOutlined />} 
               onClick={handleClear}
-              className="w-1/2 mr-2 bg-gray-700 text-white border-none h-10"
+              className="w-1/2 mr-2 bg-gray-700 text-white border-none h-10 rounded-lg"
               disabled={loading}
             >
               Clear
@@ -132,7 +153,7 @@ const App = () => {
             <Button 
               type="primary" 
               onClick={handleSubmit}
-              className="w-1/2 ml-2 bg-blue-600 text-white border-none h-10"
+              className="w-1/2 ml-2 bg-blue-600 text-white border-none h-10 rounded-lg"
               disabled={!imageFile || loading}
               loading={loading}
             >
@@ -140,7 +161,6 @@ const App = () => {
             </Button>
           </div>
         </div>
-
         {/* Right Panel - Results Area */}
         <div className="w-full lg:w-1/2 bg-gray-800 rounded-lg p-4">
           <div className="flex items-center mb-2">
@@ -151,7 +171,6 @@ const App = () => {
             </div>
             <span>Image with detected objects</span>
           </div>
-          
           <div className="bg-gray-800 border border-gray-700 rounded-lg p-8 flex flex-col items-center justify-center overflow-hidden">
             {loading ? (
               <LoadingIndicator />
@@ -163,7 +182,6 @@ const App = () => {
               </svg>
             )}
           </div>
-          
           {detectedObjects.length > 0 && (
             <div className="mt-4">
               <DetectionStats detectedObjects={detectedObjects} />
