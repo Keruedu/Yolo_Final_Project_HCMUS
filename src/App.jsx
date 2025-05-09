@@ -14,7 +14,7 @@ notification.config({
 const modelItems = [
   { key: 'yolov5', label: 'YOLO v5' },
   { key: 'yolov8', label: 'YOLO v8' },
-  { key: 'yolov8-trained', label: 'YOLO v8 (đã train)' },
+  { key: 'yolov8-trained', label: 'YOLO v8 (train dataset fruits)' },
 ];
 
 const App = () => {
