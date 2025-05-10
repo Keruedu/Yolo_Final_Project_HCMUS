@@ -12,9 +12,9 @@ notification.config({
 });
 
 const modelItems = [
-  { key: 'yolov5', label: 'YOLO v5' },
-  { key: 'yolov8', label: 'YOLO v8' },
   { key: 'yolov8-trained', label: 'YOLO v8 (train dataset fruits)' },
+  { key: 'yolov8', label: 'YOLO v8' },
+  { key: 'yolov5', label: 'YOLO v5' },
 ];
 
 const App = () => {
@@ -23,7 +23,7 @@ const App = () => {
   const [resultImage, setResultImage] = useState(null);
   const [detectedObjects, setDetectedObjects] = useState([]);
   const [imageFile, setImageFile] = useState(null);
-  const [selectedModel, setSelectedModel] = useState('yolov5');
+  const [selectedModel, setSelectedModel] = useState('yolov8-trained');
 
   // Use Ant Design notification hook
   const [api, contextHolder] = notification.useNotification();
@@ -32,13 +32,30 @@ const App = () => {
     setLoading(true);
     try {
       const response = await detectObjects(file, selectedModel);
-      const imageData = response.data.image || response.data.imageData;
+      
+      // Handle possible response structure variations
+      const results = response.data.results || response.data;
+      const detections = results.detections || [];
+      
+      // Transform the detections to the format expected by DetectionStats component
+      const formattedDetections = detections.map(detection => ({
+        label: detection.class,
+        confidence: detection.confidence,
+        x: detection.bbox[0],
+        y: detection.bbox[1],
+        width: detection.bbox[2] - detection.bbox[0],
+        height: detection.bbox[3] - detection.bbox[1]
+      }));
+      
+      // Get the image data
+      const imageData = results.image || response.data.image || response.data.imageData;
       const imageUrl = `data:image/jpeg;base64,${imageData}`;
+      
       setResultImage(imageUrl);
-      setDetectedObjects(response.data.detections || []);
+      setDetectedObjects(formattedDetections);
       api.success({
         message: 'Thành công',
-        description: 'Xử lý ảnh thành công!',
+        description: `Xử lý ảnh thành công! Phát hiện ${formattedDetections.length} đối tượng.`,
       });
     } catch (error) {
       console.error('Error:', error);
